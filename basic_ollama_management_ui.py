@@ -14,6 +14,7 @@ class OllamaManagementUI:
         self.ollama = Client(host=ollama_url)
 
         installed_models_columns = [
+            {"name": "actions", "label": "Actions", "field": "actions", "align": "left"},
             {"name": "model", "label": "Model", "field": "model", "sortable": True, "required": True, "align": "left"},
             {"name": "size", "label": "Size", "field": "size", "sortable": True},
             {"name": "modified_at", "label": "Modified", "field": "modified_at", "sortable": True},
@@ -26,7 +27,13 @@ class OllamaManagementUI:
         ]
         self.installed_models = {}
         self.installed_models_table = ui.table(title="Installed Models", columns=installed_models_columns, rows=[], row_key="name")
-        
+        # based on https://github.com/zauberzeug/nicegui/discussions/2136
+        self.installed_models_table.add_slot("body-cell-actions", """
+            <q-td :props="props">
+                <q-btn icon="delete" @click="$parent.$emit('delete', props.row.model)" />
+            </q-td>
+        """)
+        self.installed_models_table.on("delete", self.confirm_delete_model)
         ps_columns = [
             {"name": "model", "label": "Model", "field": "model", "sortable": True, "required": True, "align": "left"},
             {"name": "name", "label": "Name", "field": "name", "sortable": True, "required": True, "align": "left"},
@@ -133,6 +140,29 @@ class OllamaManagementUI:
 
     def run(self):
         ui.run()
+
+    def confirm_delete_model(self, evt):
+        model_name = evt.args
+        with ui.dialog() as dialog, ui.card():
+            ui.label(f"Are you sure you want to delete model {model_name}?")
+            def delete_and_close():
+                self.delete_model(model_name)
+                dialog.close()
+            with ui.row():
+                ui.button("Delete", on_click=delete_and_close, color="red")
+                ui.button("Cancel", on_click=dialog.close)
+        dialog.open()
+
+    def delete_model(self, model_name: str):
+        try:
+            self.ollama.delete(model=model_name)
+            ui.notify(f"Deleted model {model_name}", type="positive")
+        except Exception as e:
+            print(f"Failed to delete model {model_name}: {e}")
+            ui.notify(f"Failed to delete model {model_name}", type="negative")
+            return
+        self.installed_models_table.remove_rows([self.installed_models[model_name]])
+        self.installed_models.pop(model_name)
 
 
 parser = argparse.ArgumentParser()
