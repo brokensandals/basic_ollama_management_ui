@@ -2,6 +2,9 @@ from nicegui import ui
 from datetime import datetime
 import argparse
 from ollama import Client
+import logging
+
+logger = logging.getLogger(__name__)
 
 class OllamaManagementUI:
     def __init__(self, ollama_url: str):
@@ -12,6 +15,10 @@ class OllamaManagementUI:
             self.refreshed_label = ui.label("Initializing...")
         ui.timer(60.0, self.refresh)
         self.ollama = Client(host=ollama_url)
+
+        with ui.row(align_items="baseline"):
+            self.pull_input = ui.input(label="Pull Model", placeholder="Enter model name")
+            ui.button("Pull", on_click=self.pull_model)
 
         installed_models_columns = [
             {"name": "actions", "label": "Actions", "field": "actions", "align": "left"},
@@ -34,6 +41,7 @@ class OllamaManagementUI:
             </q-td>
         """)
         self.installed_models_table.on("delete", self.confirm_delete_model)
+
         ps_columns = [
             {"name": "model", "label": "Model", "field": "model", "sortable": True, "required": True, "align": "left"},
             {"name": "name", "label": "Name", "field": "name", "sortable": True, "required": True, "align": "left"},
@@ -83,6 +91,7 @@ class OllamaManagementUI:
                 self.installed_models_table.update_rows(to_update)
             return True
         except Exception as e:
+            logger.exception("Failed to refresh models list")
             self.installed_models_table.clear()
             self.installed_models.clear()
             self.installed_models_table.classes(replace="text-negative")
@@ -122,6 +131,7 @@ class OllamaManagementUI:
                 self.ps_table.update_rows(to_update)
             return True
         except Exception as e:
+            logger.exception("Failed to refresh running models")
             self.ps_table.clear()
             self.ps_models.clear()
             self.ps_table.classes(replace="text-negative")
@@ -161,8 +171,19 @@ class OllamaManagementUI:
             print(f"Failed to delete model {model_name}: {e}")
             ui.notify(f"Failed to delete model {model_name}", type="negative")
             return
-        self.installed_models_table.remove_rows([self.installed_models[model_name]])
-        self.installed_models.pop(model_name)
+        self.refresh()
+
+    def pull_model(self):
+        model_name = self.pull_input.value
+        if not model_name:
+            ui.notify("Please enter a model name", type="warning")
+            return
+        try:
+            self.ollama.pull(model=model_name)
+            ui.notify(f"Successfully pulled model {model_name}", type="positive")
+        except Exception as e:
+            ui.notify(f"Failed to pull model {model_name}: {str(e)}", type="negative")
+        self.refresh()
 
 
 parser = argparse.ArgumentParser()
