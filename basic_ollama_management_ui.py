@@ -6,8 +6,10 @@ from ollama import Client
 class OllamaManagementUI:
     def __init__(self, ollama_url: str):
         self.ollama_url = ollama_url
-        ui.button("Refresh", on_click=self.refresh)
-        self.refreshed_label = ui.label("Initializing...")
+        ui.label(f"Ollama URL: {ollama_url}")
+        with ui.row(align_items="baseline"):
+            ui.button("Refresh", on_click=self.refresh)
+            self.refreshed_label = ui.label("Initializing...")
         ui.timer(60.0, self.refresh)
         self.ollama = Client(host=ollama_url)
 
@@ -38,74 +40,96 @@ class OllamaManagementUI:
         ui.page_title("Ollama Management")
     
     def refresh_models_list(self):
-        new_model_names = set()
-        changed_model_names = set()
-        removed_model_names = set(self.installed_models.keys())
-        for model in self.ollama.list().models:
-            row_dict = {
-                "model": model.model,
-                "size": f"{model.size:,}",
-                "modified_at": model.modified_at,
-                "digest": model.digest,
-                "format": model.details.format,
-                "family": model.details.family,
-                "families": ", ".join(model.details.families), # fun fact: if you don't stringify this, the UI will be incredibly slow
-                "parameter_size": model.details.parameter_size,
-                "quantization_level": model.details.quantization_level
-            }
-            if model.model in self.installed_models:
-                changed_model_names.add(model.model)
-            else:
-                new_model_names.add(model.model)
-            removed_model_names.discard(model.model)
-            self.installed_models[model.model] = row_dict
-        if removed_model_names:
-            to_remove = [self.installed_models[k] for k in removed_model_names]
-            self.installed_models_table.remove_rows(to_remove)
-            for row in to_remove:
-                self.installed_models.pop(row["model"])
-        if new_model_names:
-            to_add = [self.installed_models[k] for k in new_model_names]
-            self.installed_models_table.add_rows(to_add)
-        if changed_model_names:
-            to_update = [self.installed_models[k] for k in changed_model_names]
-            self.installed_models_table.update_rows(to_update)
+        try:
+            self.installed_models_table.classes(remove="text-negative")
+            new_model_names = set()
+            changed_model_names = set()
+            removed_model_names = set(self.installed_models.keys())
+            for model in self.ollama.list().models:
+                row_dict = {
+                    "model": model.model,
+                    "size": f"{model.size:,}",
+                    "modified_at": model.modified_at,
+                    "digest": model.digest,
+                    "format": model.details.format,
+                    "family": model.details.family,
+                    "families": ", ".join(model.details.families), # fun fact: if you don't stringify this, the UI will be incredibly slow
+                    "parameter_size": model.details.parameter_size,
+                    "quantization_level": model.details.quantization_level
+                }
+                if model.model in self.installed_models:
+                    changed_model_names.add(model.model)
+                else:
+                    new_model_names.add(model.model)
+                removed_model_names.discard(model.model)
+                self.installed_models[model.model] = row_dict
+            if removed_model_names:
+                to_remove = [self.installed_models[k] for k in removed_model_names]
+                self.installed_models_table.remove_rows(to_remove)
+                for row in to_remove:
+                    self.installed_models.pop(row["model"])
+            if new_model_names:
+                to_add = [self.installed_models[k] for k in new_model_names]
+                self.installed_models_table.add_rows(to_add)
+            if changed_model_names:
+                to_update = [self.installed_models[k] for k in changed_model_names]
+                self.installed_models_table.update_rows(to_update)
+            return True
+        except Exception as e:
+            self.installed_models_table.clear()
+            self.installed_models.clear()
+            self.installed_models_table.classes(replace="text-negative")
+            return False
     
     def refresh_ps(self):
-        new_model_names = set()
-        changed_model_names = set()
-        removed_model_names = set(self.ps_models.keys())
-        for model in self.ollama.ps().models:
-            row_dict = {
-                "model": model.model,
-                "name": model.name,
-                "expires_at": f"{model.expires_at} ({(model.expires_at - datetime.now(model.expires_at.tzinfo)).total_seconds() / 60:.0f} minutes)" if model.expires_at else None,
-                "size": f"{model.size:,}",
-                "size_vram": f"{model.size_vram:,}",
-                "digest": model.digest
-            }
-            if model.model in self.ps_models:
-                changed_model_names.add(model.model)
-            else:
-                new_model_names.add(model.model)
-            removed_model_names.discard(model.model)
-            self.ps_models[model.model] = row_dict
-        if removed_model_names:
-            to_remove = [self.ps_models[k] for k in removed_model_names]
-            self.ps_table.remove_rows(to_remove)
-            for row in to_remove:
-                self.ps_models.pop(row["model"])
-        if new_model_names:
-            to_add = [self.ps_models[k] for k in new_model_names]
-            self.ps_table.add_rows(to_add)
-        if changed_model_names:
-            to_update = [self.ps_models[k] for k in changed_model_names]
-            self.ps_table.update_rows(to_update)
+        try:
+            self.ps_table.classes(remove="text-negative")
+            new_model_names = set()
+            changed_model_names = set()
+            removed_model_names = set(self.ps_models.keys())
+            for model in self.ollama.ps().models:
+                row_dict = {
+                    "model": model.model,
+                    "name": model.name,
+                    "expires_at": f"{model.expires_at} ({(model.expires_at - datetime.now(model.expires_at.tzinfo)).total_seconds() / 60:.0f} minutes)" if model.expires_at else None,
+                    "size": f"{model.size:,}",
+                    "size_vram": f"{model.size_vram:,}",
+                    "digest": model.digest
+                }
+                if model.model in self.ps_models:
+                    changed_model_names.add(model.model)
+                else:
+                    new_model_names.add(model.model)
+                removed_model_names.discard(model.model)
+                self.ps_models[model.model] = row_dict
+            if removed_model_names:
+                to_remove = [self.ps_models[k] for k in removed_model_names]
+                self.ps_table.remove_rows(to_remove)
+                for row in to_remove:
+                    self.ps_models.pop(row["model"])
+            if new_model_names:
+                to_add = [self.ps_models[k] for k in new_model_names]
+                self.ps_table.add_rows(to_add)
+            if changed_model_names:
+                to_update = [self.ps_models[k] for k in changed_model_names]
+                self.ps_table.update_rows(to_update)
+            return True
+        except Exception as e:
+            self.ps_table.clear()
+            self.ps_models.clear()
+            self.ps_table.classes(replace="text-negative")
+            return False
 
     def refresh(self):
-        self.refresh_models_list()
-        self.refresh_ps()
-        self.refreshed_label.set_text(f"Last refreshed at {datetime.now().strftime("%H:%M:%S")}")
+        ok = True
+        ok = self.refresh_models_list() and ok
+        ok = self.refresh_ps() and ok
+        if ok:
+            self.refreshed_label.set_text(f"Refreshed successfully at {datetime.now().strftime("%H:%M:%S")}")
+            self.refreshed_label.classes(replace="text-positive")
+        else:
+            self.refreshed_label.set_text(f"Failed refresh at {datetime.now().strftime("%H:%M:%S")}")
+            self.refreshed_label.classes(replace="text-negative")
 
     def run(self):
         ui.run()
