@@ -17,8 +17,9 @@ class OllamaManagementUI:
         self.ollama = Client(host=ollama_url)
 
         with ui.row(align_items="baseline"):
-            self.pull_input = ui.input(label="Pull Model", placeholder="Enter model name")
+            self.new_model_input = ui.input(label="Pull Model", placeholder="Enter model name")
             ui.button("Pull", on_click=self.pull_model)
+            ui.button("Create Using Modelfile", on_click=self.create_using_modelfile)
 
         installed_models_columns = [
             {"name": "actions", "label": "Actions", "field": "actions", "align": "left"},
@@ -33,7 +34,7 @@ class OllamaManagementUI:
             {"name": "quantization_level", "label": "Quantization", "field": "quantization_level"}
         ]
         self.installed_models = {}
-        self.installed_models_table = ui.table(title="Installed Models", columns=installed_models_columns, rows=[], row_key="name")
+        self.installed_models_table = ui.table(title="Installed Models", columns=installed_models_columns, rows=[], row_key="model")
         # based on https://github.com/zauberzeug/nicegui/discussions/2136
         self.installed_models_table.add_slot("body-cell-actions", """
             <q-td :props="props">
@@ -171,10 +172,10 @@ class OllamaManagementUI:
             print(f"Failed to delete model {model_name}: {e}")
             ui.notify(f"Failed to delete model {model_name}", type="negative")
             return
-        self.refresh()
+        self.refresh_models_list()
 
     def pull_model(self):
-        model_name = self.pull_input.value
+        model_name = self.new_model_input.value
         if not model_name:
             ui.notify("Please enter a model name", type="warning")
             return
@@ -185,6 +186,25 @@ class OllamaManagementUI:
             ui.notify(f"Failed to pull model {model_name}: {str(e)}", type="negative")
         self.refresh()
 
+    def create_using_modelfile(self):
+        model_name = self.new_model_input.value
+        if not model_name:
+            ui.notify("Please enter a model name", type="warning")
+            return
+        with ui.dialog() as dialog, ui.card():
+            modelfile = ui.textarea("Modelfile", placeholder="FROM llama3.3:70b\nSYSTEM You are an unhelpful so-called \"assistant\".")
+            def create():
+                try:
+                    self.ollama.create(model=model_name, modelfile=modelfile.value)
+                    ui.notify(f"Created model {model_name}", type="positive")
+                    dialog.close()
+                except Exception as e:
+                    ui.notify(f"Failed to create model: {str(e)}", type="negative")
+                self.refresh_models_list()
+            with ui.row():
+                ui.button("Create", on_click=create)
+                ui.button("Cancel", on_click=dialog.close)
+        dialog.open()
 
 parser = argparse.ArgumentParser()
 parser.add_argument("ollama", help="Ollama URL")
