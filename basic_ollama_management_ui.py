@@ -6,6 +6,7 @@ from ollama import Client
 class OllamaManagementUI:
     def __init__(self, ollama_url: str):
         self.ollama_url = ollama_url
+        ui.button("Refresh", on_click=self.refresh)
         self.refreshed_label = ui.label("Initializing...")
         ui.timer(60.0, self.refresh)
         self.ollama = Client(host=ollama_url)
@@ -34,6 +35,7 @@ class OllamaManagementUI:
         ]
         self.ps_models = {}
         self.ps_table = ui.table(title="Running Models", columns=ps_columns, rows=[], row_key="name")
+        ui.page_title("Ollama Management")
     
     def refresh_models_list(self):
         new_model_names = set()
@@ -103,7 +105,7 @@ class OllamaManagementUI:
     def refresh(self):
         self.refresh_models_list()
         self.refresh_ps()
-        self.refreshed_label.set_text(f"Last refreshed at {datetime.now().strftime("%H:%M")}")
+        self.refreshed_label.set_text(f"Last refreshed at {datetime.now().strftime("%H:%M:%S")}")
 
     def run(self):
         ui.run()
