@@ -192,6 +192,7 @@ class OllamaManagementUI:
             ui.notify("Please enter a model name", type="warning")
             return
         with ui.dialog() as dialog, ui.card():
+            ui.label(f"Create a new model based on {model_name}?")
             modelfile = ui.textarea("Modelfile", placeholder="FROM llama3.3:70b\nSYSTEM You are an unhelpful so-called \"assistant\".")
             async def create():
                 try:
@@ -202,7 +203,7 @@ class OllamaManagementUI:
                     ui.notify(f"Failed to create model: {str(e)}", type="negative")
                 await self.refresh_models_list()
             with ui.row():
-                ui.button("Create", on_click=create)
+                ui.button("Create", on_click=create, color="green")
                 ui.button("Cancel", on_click=dialog.close)
         dialog.open()
 
