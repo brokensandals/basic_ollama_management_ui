@@ -7,13 +7,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 class OllamaManagementUI:
-    def __init__(self, ollama_url: str):
+    def __init__(self, ollama_url: str, refresh_interval: int = 60):
         self.ollama_url = ollama_url
         ui.label(f"Ollama URL: {ollama_url}")
         with ui.row(align_items="baseline"):
             ui.button("Refresh", on_click=self.refresh)
             self.refreshed_label = ui.label("Initializing...")
-        ui.timer(60.0, self.refresh)
+        ui.timer(refresh_interval, self.refresh)
         self.ollama = AsyncClient(host=ollama_url)
 
         self.creation_card = ui.card()
@@ -196,5 +196,6 @@ class OllamaManagementUI:
 
 parser = argparse.ArgumentParser()
 parser.add_argument("ollama", help="Ollama URL")
+parser.add_argument("--refresh-interval", type=int, default=60, help="Refresh interval in seconds")
 args = parser.parse_args()
-OllamaManagementUI(args.ollama).run()
+OllamaManagementUI(args.ollama, args.refresh_interval).run()
