@@ -35,7 +35,6 @@ class OllamaManagementUI:
             {"name": "parameter_size", "label": "Parameters", "field": "parameter_size", "sortable": True},
             {"name": "quantization_level", "label": "Quantization", "field": "quantization_level"}
         ]
-        self.installed_models = {}
         self.installed_models_table = ui.table(title="Installed Models", columns=installed_models_columns, rows=[], row_key="model")
         # based on https://github.com/zauberzeug/nicegui/discussions/2136
         self.installed_models_table.add_slot("body-cell-actions", """
@@ -53,16 +52,13 @@ class OllamaManagementUI:
             {"name": "size_vram", "label": "VRAM", "field": "size_vram", "sortable": True},
             {"name": "digest", "label": "Digest", "field": "digest"},
         ]
-        self.ps_models = {}
         self.ps_table = ui.table(title="Running Models", columns=ps_columns, rows=[], row_key="name")
         ui.page_title("Ollama Management")
     
     async def refresh_models_list(self):
         try:
             self.installed_models_table.classes(remove="text-negative")
-            new_model_names = set()
-            changed_model_names = set()
-            removed_model_names = set(self.installed_models.keys())
+            rows = []
             for model in (await self.ollama.list()).models:
                 row_dict = {
                     "model": model.model,
@@ -75,37 +71,20 @@ class OllamaManagementUI:
                     "parameter_size": model.details.parameter_size,
                     "quantization_level": model.details.quantization_level
                 }
-                if model.model in self.installed_models:
-                    changed_model_names.add(model.model)
-                else:
-                    new_model_names.add(model.model)
-                removed_model_names.discard(model.model)
-                self.installed_models[model.model] = row_dict
-            if removed_model_names:
-                to_remove = [self.installed_models[k] for k in removed_model_names]
-                self.installed_models_table.remove_rows(to_remove)
-                for row in to_remove:
-                    self.installed_models.pop(row["model"])
-            if new_model_names:
-                to_add = [self.installed_models[k] for k in new_model_names]
-                self.installed_models_table.add_rows(to_add)
-            if changed_model_names:
-                to_update = [self.installed_models[k] for k in changed_model_names]
-                self.installed_models_table.update_rows(to_update)
+                rows.append(row_dict)
+            self.installed_models_table.rows[:] = rows
+            self.installed_models_table.update()
             return True
         except Exception as e:
             logger.exception("Failed to refresh models list")
             self.installed_models_table.clear()
-            self.installed_models.clear()
             self.installed_models_table.classes(replace="text-negative")
             return False
     
     async def refresh_ps(self):
         try:
             self.ps_table.classes(remove="text-negative")
-            new_model_names = set()
-            changed_model_names = set()
-            removed_model_names = set(self.ps_models.keys())
+            rows = []
             for model in (await self.ollama.ps()).models:
                 row_dict = {
                     "model": model.model,
@@ -115,28 +94,13 @@ class OllamaManagementUI:
                     "size_vram": f"{model.size_vram:,}",
                     "digest": model.digest
                 }
-                if model.model in self.ps_models:
-                    changed_model_names.add(model.model)
-                else:
-                    new_model_names.add(model.model)
-                removed_model_names.discard(model.model)
-                self.ps_models[model.model] = row_dict
-            if removed_model_names:
-                to_remove = [self.ps_models[k] for k in removed_model_names]
-                self.ps_table.remove_rows(to_remove)
-                for row in to_remove:
-                    self.ps_models.pop(row["model"])
-            if new_model_names:
-                to_add = [self.ps_models[k] for k in new_model_names]
-                self.ps_table.add_rows(to_add)
-            if changed_model_names:
-                to_update = [self.ps_models[k] for k in changed_model_names]
-                self.ps_table.update_rows(to_update)
+                rows.append(row_dict)
+            self.ps_table.rows[:] = rows
+            self.ps_table.update()
             return True
         except Exception as e:
             logger.exception("Failed to refresh running models")
             self.ps_table.clear()
-            self.ps_models.clear()
             self.ps_table.classes(replace="text-negative")
             return False
 
