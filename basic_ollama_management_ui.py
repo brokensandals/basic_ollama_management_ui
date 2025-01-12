@@ -39,9 +39,11 @@ class OllamaManagementUI:
         # based on https://github.com/zauberzeug/nicegui/discussions/2136
         self.installed_models_table.add_slot("body-cell-actions", """
             <q-td :props="props">
+                <q-btn icon="info" @click="$parent.$emit('info', props.row.model)" />
                 <q-btn icon="delete" @click="$parent.$emit('delete', props.row.model)" />
             </q-td>
         """)
+        self.installed_models_table.on("info", self.show_model_info)
         self.installed_models_table.on("delete", self.confirm_delete_model)
 
         ps_columns = [
@@ -192,6 +194,45 @@ class OllamaManagementUI:
             with ui.row():
                 ui.button("Create", on_click=create, color="green")
                 ui.button("Cancel", on_click=dialog.close)
+        dialog.open()
+
+    async def show_model_info(self, evt):
+        model_name = evt.args
+        with ui.dialog() as dialog, ui.card().style("max-width: none"):
+            try:
+                info = await self.ollama.show(model=model_name)
+                with ui.grid(columns="auto 1fr"):
+                    ui.label("Model")
+                    ui.label(model_name)
+                    ui.label("Modified")
+                    ui.label(info.modified_at)
+                    ui.label("Template")
+                    ui.label(info.template).style("white-space: pre-wrap;")
+                    ui.label("Modelfile")
+                    ui.label(info.modelfile).style("white-space: pre-wrap;")
+                    ui.label("License")
+                    ui.label(info.license).style("white-space: pre-wrap;")
+                    if info.details:
+                        ui.label("Parent Model")
+                        ui.label(info.details.parent_model)
+                        ui.label("Format")
+                        ui.label(info.details.format)
+                        ui.label("Family")
+                        ui.label(info.details.family)
+                        ui.label("Families")
+                        ui.label(", ".join(info.details.families))
+                        ui.label("Parameter Size")
+                        ui.label(info.details.parameter_size)
+                        ui.label("Quantization Level")
+                        ui.label(info.details.quantization_level)
+                    ui.label("Parameters")
+                    ui.label(info.parameters).style("white-space: pre-wrap;")
+                    for k, v in info.modelinfo.items():
+                        ui.label(k)
+                        ui.label(str(v)).style("white-space: pre-wrap;")
+            except Exception as e:
+                ui.label(f"Failed to get model info: {str(e)}")
+            ui.button("Close", on_click=dialog.close)
         dialog.open()
 
 parser = argparse.ArgumentParser()
