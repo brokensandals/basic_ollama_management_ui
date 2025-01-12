@@ -187,19 +187,18 @@ class OllamaManagementUI:
         with self.creation_card:
             status_row = ui.row()
         with status_row:
-            ui.label("Pulling {model_name}...")
+            ui.label(f"Pulling {model_name}...")
             status_label = ui.label()
             progress_bar = ui.linear_progress()
         try:
             async for progress in await self.ollama.pull(model=model_name, stream=True):
-                print(f"PROGRESS: {progress}")
                 status_label.set_text(progress.status)
                 progress_bar.set_value(progress.completed / progress.total if progress.completed else 0)
             ui.notify(f"Successfully pulled model {model_name}", type="positive")
         except Exception as e:
             ui.notify(f"Failed to pull model {model_name}: {str(e)}", type="negative")
         status_row.delete()
-        await self.refresh()
+        await self.refresh_models_list()
 
     async def create_using_modelfile(self):
         model_name = self.new_model_input.value
@@ -215,7 +214,7 @@ class OllamaManagementUI:
                 with self.creation_card:
                     status_row = ui.row()
                 with status_row:
-                    ui.label("Creating {model_name}...")
+                    ui.label(f"Creating {model_name}...")
                     status_label = ui.label()
                 try:
                     async for progress in await self.ollama.create(model=model_name, modelfile=modelfile.value, stream=True):
