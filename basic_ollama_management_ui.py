@@ -1,7 +1,7 @@
 from nicegui import ui
 from datetime import datetime
 import argparse
-from ollama import Client
+from ollama import AsyncClient
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ class OllamaManagementUI:
             ui.button("Refresh", on_click=self.refresh)
             self.refreshed_label = ui.label("Initializing...")
         ui.timer(60.0, self.refresh)
-        self.ollama = Client(host=ollama_url)
+        self.ollama = AsyncClient(host=ollama_url)
 
         with ui.row(align_items="baseline"):
             self.new_model_input = ui.input(label="Pull Model", placeholder="Enter model name")
@@ -55,13 +55,13 @@ class OllamaManagementUI:
         self.ps_table = ui.table(title="Running Models", columns=ps_columns, rows=[], row_key="name")
         ui.page_title("Ollama Management")
     
-    def refresh_models_list(self):
+    async def refresh_models_list(self):
         try:
             self.installed_models_table.classes(remove="text-negative")
             new_model_names = set()
             changed_model_names = set()
             removed_model_names = set(self.installed_models.keys())
-            for model in self.ollama.list().models:
+            for model in (await self.ollama.list()).models:
                 row_dict = {
                     "model": model.model,
                     "size": f"{model.size:,}",
@@ -98,13 +98,13 @@ class OllamaManagementUI:
             self.installed_models_table.classes(replace="text-negative")
             return False
     
-    def refresh_ps(self):
+    async def refresh_ps(self):
         try:
             self.ps_table.classes(remove="text-negative")
             new_model_names = set()
             changed_model_names = set()
             removed_model_names = set(self.ps_models.keys())
-            for model in self.ollama.ps().models:
+            for model in (await self.ollama.ps()).models:
                 row_dict = {
                     "model": model.model,
                     "name": model.name,
@@ -138,10 +138,10 @@ class OllamaManagementUI:
             self.ps_table.classes(replace="text-negative")
             return False
 
-    def refresh(self):
+    async def refresh(self):
         ok = True
-        ok = self.refresh_models_list() and ok
-        ok = self.refresh_ps() and ok
+        ok = await self.refresh_models_list() and ok
+        ok = await self.refresh_ps() and ok
         if ok:
             self.refreshed_label.set_text(f"Refreshed successfully at {datetime.now().strftime("%H:%M:%S")}")
             self.refreshed_label.classes(replace="text-positive")
@@ -152,55 +152,55 @@ class OllamaManagementUI:
     def run(self):
         ui.run()
 
-    def confirm_delete_model(self, evt):
+    async def confirm_delete_model(self, evt):
         model_name = evt.args
         with ui.dialog() as dialog, ui.card():
             ui.label(f"Are you sure you want to delete model {model_name}?")
-            def delete_and_close():
-                self.delete_model(model_name)
+            async def delete_and_close():
+                await self.delete_model(model_name)
                 dialog.close()
             with ui.row():
                 ui.button("Delete", on_click=delete_and_close, color="red")
                 ui.button("Cancel", on_click=dialog.close)
         dialog.open()
 
-    def delete_model(self, model_name: str):
+    async def delete_model(self, model_name: str):
         try:
-            self.ollama.delete(model=model_name)
+            await self.ollama.delete(model=model_name)
             ui.notify(f"Deleted model {model_name}", type="positive")
         except Exception as e:
             print(f"Failed to delete model {model_name}: {e}")
             ui.notify(f"Failed to delete model {model_name}", type="negative")
             return
-        self.refresh_models_list()
+        await self.refresh_models_list()
 
-    def pull_model(self):
+    async def pull_model(self):
         model_name = self.new_model_input.value
         if not model_name:
             ui.notify("Please enter a model name", type="warning")
             return
         try:
-            self.ollama.pull(model=model_name)
+            await self.ollama.pull(model=model_name)
             ui.notify(f"Successfully pulled model {model_name}", type="positive")
         except Exception as e:
             ui.notify(f"Failed to pull model {model_name}: {str(e)}", type="negative")
-        self.refresh()
+        await self.refresh()
 
-    def create_using_modelfile(self):
+    async def create_using_modelfile(self):
         model_name = self.new_model_input.value
         if not model_name:
             ui.notify("Please enter a model name", type="warning")
             return
         with ui.dialog() as dialog, ui.card():
             modelfile = ui.textarea("Modelfile", placeholder="FROM llama3.3:70b\nSYSTEM You are an unhelpful so-called \"assistant\".")
-            def create():
+            async def create():
                 try:
-                    self.ollama.create(model=model_name, modelfile=modelfile.value)
+                    await self.ollama.create(model=model_name, modelfile=modelfile.value)
                     ui.notify(f"Created model {model_name}", type="positive")
                     dialog.close()
                 except Exception as e:
                     ui.notify(f"Failed to create model: {str(e)}", type="negative")
-                self.refresh_models_list()
+                await self.refresh_models_list()
             with ui.row():
                 ui.button("Create", on_click=create)
                 ui.button("Cancel", on_click=dialog.close)
