@@ -16,10 +16,12 @@ class OllamaManagementUI:
         ui.timer(60.0, self.refresh)
         self.ollama = AsyncClient(host=ollama_url)
 
-        with ui.row(align_items="baseline"):
-            self.new_model_input = ui.input(label="Pull Model", placeholder="Enter model name")
-            ui.button("Pull", on_click=self.pull_model)
-            ui.button("Create Using Modelfile", on_click=self.create_using_modelfile)
+        self.creation_card = ui.card()
+        with self.creation_card:
+            with ui.row(align_items="baseline"):
+                self.new_model_input = ui.input(label="Pull or Create Model", placeholder="Enter model name")
+                ui.button("Pull", on_click=self.pull_model)
+                ui.button("Create Using Modelfile", on_click=self.create_using_modelfile)
 
         installed_models_columns = [
             {"name": "actions", "label": "Actions", "field": "actions", "align": "left"},
@@ -195,12 +197,21 @@ class OllamaManagementUI:
             ui.label(f"Create a new model based on {model_name}?")
             modelfile = ui.textarea("Modelfile", placeholder="FROM llama3.3:70b\nSYSTEM You are an unhelpful so-called \"assistant\".")
             async def create():
+                status_row = None
+                status_label = None
+                with self.creation_card:
+                    status_row = ui.row()
+                with status_row:
+                    ui.label("Creating {model_name}")
+                    status_label = ui.label()
                 try:
-                    await self.ollama.create(model=model_name, modelfile=modelfile.value)
+                    async for progress in await self.ollama.create(model=model_name, modelfile=modelfile.value, stream=True):
+                        status_label.set_text(progress.status)
                     ui.notify(f"Created model {model_name}", type="positive")
                     dialog.close()
                 except Exception as e:
                     ui.notify(f"Failed to create model: {str(e)}", type="negative")
+                status_row.delete()
                 await self.refresh_models_list()
             with ui.row():
                 ui.button("Create", on_click=create, color="green")
