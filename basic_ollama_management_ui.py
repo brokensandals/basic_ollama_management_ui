@@ -117,8 +117,8 @@ class OllamaManagementUI:
             self.refreshed_label.set_text(f"Failed refresh at {datetime.now().strftime("%H:%M:%S")}")
             self.refreshed_label.classes(replace="text-negative")
 
-    def run(self):
-        ui.run()
+    def run(self, reload: bool = False, native: bool = False):
+        ui.run(reload=reload, native=native)
 
     async def confirm_delete_model(self, evt):
         model_name = evt.args
@@ -238,5 +238,7 @@ class OllamaManagementUI:
 parser = argparse.ArgumentParser()
 parser.add_argument("ollama", help="Ollama URL")
 parser.add_argument("--refresh-interval", type=int, default=60, help="Refresh interval in seconds")
+parser.add_argument("--reload", action="store_true", help="Enable automatic code reloading")
+parser.add_argument("--native", action="store_true", help="Open a native window")
 args = parser.parse_args()
-OllamaManagementUI(args.ollama, args.refresh_interval).run()
+OllamaManagementUI(args.ollama, args.refresh_interval).run(reload=args.reload, native=args.native)
